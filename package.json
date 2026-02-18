@@ -1,0 +1,19 @@
+{
+  "name": "ovault-sdk-integration",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "quote": "tsx scripts/run.ts quote",
+    "execute": "tsx scripts/run.ts execute",
+    "track": "tsx scripts/run.ts track"
+  },
+  "dependencies": {
+    "@zircuit/ovault-evm": "^0.0.3",
+    "viem": "^2.33.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.4.4"
+  }
+}
