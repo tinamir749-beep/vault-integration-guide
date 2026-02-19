@@ -65,12 +65,14 @@ Options:
   --destination, -d    Destination chain      [default: ethereum]
   --token, -t          Token                  [default: usdc]
   --operation, -o      deposit | redeem       [default: deposit]
-  --amount, -a         Human-readable amount  [default: 0.01]
+  --amount, -a         Human-readable amount  [default: 1.0]
   --slippage           Slippage tolerance     [default: 0.01]
   --buffer             Extra % on LZ fee      [default: 0.3]
   --permit             Use EIP-2612 permit    [default: false]
   --dst-address        Recipient if != wallet
   --referral-code      Referral code
+  --rpc-ethereum       Custom RPC URL for Ethereum
+  --rpc-base           Custom RPC URL for Base
   --help, -h           Show this help message
 `;
 
@@ -81,7 +83,7 @@ const { values, positionals } = parseArgs({
     destination:     { type: "string",  short: "d", default: "ethereum" },
     token:           { type: "string",  short: "t", default: "usdc" },
     operation:       { type: "string",  short: "o", default: "deposit" },
-    amount:          { type: "string",  short: "a", default: "0.01" },
+    amount:          { type: "string",  short: "a", default: "1.0" },
     wallet:          { type: "string",  short: "w" },
     "private-key":   { type: "string" },
     "tx-hash":       { type: "string" },
@@ -90,6 +92,8 @@ const { values, positionals } = parseArgs({
     buffer:          { type: "string",  default: "0.3" },
     permit:          { type: "boolean", default: false },
     "referral-code": { type: "string" },
+    "rpc-ethereum":  { type: "string" },
+    "rpc-base":      { type: "string" },
     help:            { type: "boolean", short: "h", default: false },
   },
   allowPositionals: true,
@@ -123,6 +127,13 @@ function requireFlag(name: string): string {
   return val;
 }
 
+function buildRpcUrls(): Partial<Record<SupportedChainName, string>> | undefined {
+  const urls: Partial<Record<SupportedChainName, string>> = {};
+  if (values["rpc-ethereum"]) urls.ethereum = values["rpc-ethereum"];
+  if (values["rpc-base"]) urls.base = values["rpc-base"];
+  return Object.keys(urls).length > 0 ? urls : undefined;
+}
+
 function buildInputs(): OVaultCoreInputs {
   const wallet = requireFlag("wallet") as Hex;
 
@@ -141,6 +152,7 @@ function buildInputs(): OVaultCoreInputs {
     buffer: values.buffer ? Number(values.buffer) : undefined,
     supportsEip2612: values.permit,
     referralCode: values["referral-code"],
+    rpcUrls: buildRpcUrls(),
   };
 }
 
@@ -185,11 +197,12 @@ async function runExecute() {
   console.log(`Generating ${input.operation} inputs...\n`);
   const result = await OVaultSyncMessageBuilder.generateOVaultInputs(input);
   const srcChain = CHAINS[input.sourceChain].viemChain;
+  const sourceRpcUrl = input.rpcUrls?.[input.sourceChain];
 
   const client = createWalletClient({
     account,
     chain: srcChain,
-    transport: http(),
+    transport: http(sourceRpcUrl),
   }).extend(publicActions);
 
   // --- Approval ---------------------------------------------------------------
@@ -272,14 +285,17 @@ async function runExecute() {
 
 async function runTrack() {
   const txHash = requireFlag("tx-hash") as Hex;
-  const sourceChain = CHAINS[values.source as SupportedChainName].viemChain;
+  const sourceName = values.source as SupportedChainName;
+  const dstName = values.destination as SupportedChainName;
+  const sourceChain = CHAINS[sourceName].viemChain;
   const hubChain = CHAINS.base.viemChain;
-  const dstChain = CHAINS[values.destination as SupportedChainName].viemChain;
+  const dstChain = CHAINS[dstName].viemChain;
+  const rpcUrls = buildRpcUrls();
   const timeoutMs = 900_000;
   const pollMs = 10_000;
 
   console.log(`Tracking tx: ${txHash}`);
-  console.log(`Source: ${values.source} | Destination: ${values.destination}\n`);
+  console.log(`Source: ${sourceName} | Destination: ${dstName}\n`);
 
   const deadline = Date.now() + timeoutMs;
 
@@ -288,6 +304,13 @@ async function runTrack() {
       sourceChain,
       hubChain,
       dstChain,
+      rpcUrls: rpcUrls
+        ? {
+            sourceChain: rpcUrls[sourceName],
+            hubChain: rpcUrls.base,
+            dstChain: rpcUrls[dstName],
+          }
+        : undefined,
     });
 
     console.log(`[${new Date().toISOString()}] step: ${status.step}`);
