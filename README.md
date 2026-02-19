@@ -1,13 +1,5 @@
 # OVault SDK Integration Guide
 
-## Install
-
-```bash
-npm install
-```
-
----
-
 ## Documentation
 
 For full details on architecture, deposit/redeem flows, transaction tracking, EIP-2612 permit support, and the SDK parameter reference, see the [Vault Integration Guide](https://docs.zircuit.com/zircuit-finance/zircuit-finance-vaults/vault-integration-guide).
@@ -21,7 +13,6 @@ This folder includes a single `run.ts` script that covers all three flows — **
 ### Setup
 
 ```bash
-cd integration
 npm install
 ```
 
@@ -56,6 +47,8 @@ npx tsx scripts/run.ts <command> [options]
 | `--permit` | | `false` | Use EIP-2612 permit |
 | `--dst-address` | | | Recipient if different from wallet |
 | `--referral-code` | | | Referral code |
+| `--rpc-ethereum` | | | Custom RPC URL for Ethereum |
+| `--rpc-base` | | | Custom RPC URL for Base |
 
 ### Examples
 
@@ -87,6 +80,12 @@ npx tsx scripts/run.ts execute \
 npx tsx scripts/run.ts track \
   --wallet 0xYourWallet \
   --tx-hash 0xYourTxHash
+
+# 6. Use custom RPC URLs to avoid public rate limits
+npx tsx scripts/run.ts quote \
+  --wallet 0xYourWallet \
+  --rpc-ethereum https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY \
+  --rpc-base https://base-mainnet.g.alchemy.com/v2/YOUR_KEY
 
 # Or use the npm script shortcuts:
 npm run quote -- --wallet 0xYourWallet
